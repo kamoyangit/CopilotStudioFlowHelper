@@ -76,14 +76,27 @@ st.markdown("""
         font-size: 0.75rem;
         margin-top: 0.5rem;
     }
-    .stTextInput > div > div > input {
-        background: rgba(255,255,255,0.1);
-        color: white;
+    .stTextInput input,
+    .stTextArea textarea,
+    div[data-baseweb="input"] input {
+        background: #ffffff !important;
+        color: #000000 !important;
+        caret-color: #000000;
         border: 1px solid rgba(255,255,255,0.2);
         border-radius: 12px;
         padding: 0.8rem 1rem;
     }
-    .stTextInput > div > div > input:focus {
+    div[data-baseweb="input"] {
+        background: #ffffff !important;
+        border-radius: 12px;
+    }
+    .stTextInput input::placeholder,
+    .stTextArea textarea::placeholder {
+        color: #6b7280 !important;
+        opacity: 1;
+    }
+    .stTextInput input:focus,
+    .stTextArea textarea:focus {
         border-color: #667eea;
         box-shadow: 0 0 0 2px rgba(102,126,234,0.3);
     }
