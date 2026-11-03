@@ -2,8 +2,13 @@ import streamlit as st
 import os
 import json
 import time
+import hmac
 from openai import OpenAI
 from duckduckgo_search import DDGS
+
+# 認証設定
+MAX_LOGIN_ATTEMPTS = 5
+LOGIN_LOCKOUT_SECONDS = 300
 
 # ページ設定
 st.set_page_config(
@@ -102,6 +107,72 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
+
+# ---------------------------------------------------------------- 認証
+def _require_password() -> None:
+    """起動時に PASS_KEY によるパスワードチェックを行う。"""
+    pass_key = os.environ.get("PASS_KEY", "")
+    if not pass_key:
+        st.error(
+            "環境変数 `PASS_KEY` が設定されていません。"
+            "アプリを起動する前に `export PASS_KEY=...` を設定してください。"
+        )
+        st.stop()
+
+    if st.session_state.get("authenticated", False):
+        return
+
+    now = time.time()
+    lockout_until = st.session_state.get("lockout_until", 0)
+    if lockout_until and now >= lockout_until:
+        st.session_state.login_attempts = 0
+        st.session_state.lockout_until = 0
+        lockout_until = 0
+    if now < lockout_until:
+        wait_seconds = int(lockout_until - now) + 1
+        st.error(
+            "試行回数が上限に達しました。"
+            f"{wait_seconds} 秒後に再試行してください。"
+        )
+        st.stop()
+
+    if "login_attempts" not in st.session_state:
+        st.session_state.login_attempts = 0
+
+    st.title("Copilot Studio Flow ブロックダイアグラム生成")
+    st.caption("起動にはパスワードが必要です。")
+    with st.form("login_form"):
+        password = st.text_input("パスワード", type="password")
+        submitted = st.form_submit_button("ログイン", type="primary")
+
+    if submitted:
+        if hmac.compare_digest(
+            password.encode("utf-8"),
+            pass_key.encode("utf-8"),
+        ):
+            st.session_state.authenticated = True
+            st.session_state.login_attempts = 0
+            st.session_state.lockout_until = 0
+            st.rerun()
+        else:
+            attempts = st.session_state.login_attempts + 1
+            st.session_state.login_attempts = attempts
+            if attempts >= MAX_LOGIN_ATTEMPTS:
+                st.session_state.lockout_until = (
+                    time.time() + LOGIN_LOCKOUT_SECONDS
+                )
+                st.rerun()
+            else:
+                st.error(
+                    "パスワードが正しくありません。"
+                    f"（{attempts}/{MAX_LOGIN_ATTEMPTS}）"
+                )
+
+    st.stop()
+
+
+_require_password()
 
 # ヘッダー
 st.markdown("""
